@@ -1,0 +1,9 @@
+"neocon" is a simple serial console utility that tries to open a
+ttys that may exist on a system until one such open succeeds. It
+then passes terminal input and output, until there is a read or
+write failure on the tty, in which case it disconnects, and the
+process restarts.
+
+This is mainly intended for serial over USB interfaces that
+disappear when the Neo or debug board is restarted. E.g.,
+neocon /dev/ttyUSB0 /dev/ttyUSB1
