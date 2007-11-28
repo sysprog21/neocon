@@ -7,3 +7,7 @@ process restarts.
 This is mainly intended for serial over USB interfaces that
 disappear when the Neo or debug board is restarted. E.g.,
 neocon /dev/ttyUSB0 /dev/ttyUSB1
+
+The option  -t delay_ms  throttles keyboard input to a rate of
+one character every "delay_ms" milliseconds. This can be used to
+prevent buffer overruns on the remote end.

@@ -114,12 +114,12 @@ static void scan(const char *s, size_t len)
 }
 
 
-static int copy(int in, int out, int scan_escape)
+static int copy(int in, int out, int scan_escape, int single)
 {
     char buffer[2048];
     ssize_t got, wrote, pos;
  
-    got = read(in, buffer, sizeof(buffer));
+    got = read(in, buffer, single ? 1 : sizeof(buffer));
     if (got < 0)
 	return 0;
     if (scan_escape)
@@ -160,7 +160,7 @@ static void cleanup(void)
 
 static void usage(const char *name)
 {
-    fprintf(stderr, "usage: %s [-b bps] tty ...\n", name);
+    fprintf(stderr, "usage: %s [-b bps] [-t delay_ms] tty ...\n", name);
     exit(1);
 }
 
@@ -170,12 +170,19 @@ int main(int argc, char *const *argv)
     char *end;
     int c;
     int fd = -1;
+    int throttle_us = 0;
+    int throttle = 0;
 
-    while ((c = getopt(argc, argv, "")) != EOF)
+    while ((c = getopt(argc, argv, "b:t:")) != EOF)
 	switch (c) {
 	    case 'b':
 		bps = strtoul(optarg, &end, 0);
-		if (!*end)
+		if (*end)
+		    usage(*argv);
+		break;
+	    case 't':
+		throttle_us = strtoul(optarg, &end, 0)*1000;
+		if (*end)
 		    usage(*argv);
 		break;
 	    default:
@@ -197,21 +204,27 @@ int main(int argc, char *const *argv)
 		write_string("\r\n[Open]\r\n");
 	}
 	FD_ZERO(&set);
-	FD_SET(0, &set);
+	if (!throttle)
+	    FD_SET(0, &set);
 	if (fd >= 0)
 	    FD_SET(fd, &set);
 	tv.tv_sec = 0;
-	tv.tv_usec = 100000;
+	tv.tv_usec = throttle ? throttle_us : 100000;
 	res = select(fd < 0 ? 1 : fd+1, &set, NULL, NULL, &tv);
 	if (res < 0) {
 	    perror("select");
 	    return 1;
 	}
-	if (FD_ISSET(0, &set))
-	    if (!copy(0, fd, 1))
+	if (!res)
+	    throttle = 0;
+	if (FD_ISSET(0, &set)) {
+	    if (throttle_us)
+		throttle = 1;
+	    if (!copy(0, fd, 1, throttle_us != 0))
 		goto failed;
+	}
 	if (fd >= 0 && FD_ISSET(fd, &set))
-	    if (!copy(fd, 1, 0))
+	    if (!copy(fd, 1, 0, 0))
 		goto failed;
 	continue;
 
