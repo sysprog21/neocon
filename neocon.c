@@ -32,8 +32,35 @@
 
 static char *const *ttys;
 static int num_ttys;
-static int bps = B115200;
+static speed_t speed = B115200;
 static struct termios console, tty;
+
+
+static struct bps {
+    speed_t speed;
+    int bps;
+} bps_tab[] = {
+    { B300,       300 },
+    { B1200,     1200 },
+    { B2400,     2400 },
+    { B9600,     9600 },
+    { B19200,   19200 },
+    { B38400,   38400 },
+    { B115200, 115200 },
+    { 0, 0 }
+};
+
+
+static speed_t bps_to_speed(int bps)
+{
+    const struct bps *p;
+
+    for (p = bps_tab; p->bps; p++)
+	if (p->bps == bps)
+	    return p->speed;
+    fprintf(stderr, "no such speed: %d bps\n", bps);
+    exit(1);
+}
 
 
 static void make_raw(int fd, struct termios *old)
@@ -52,11 +79,11 @@ static void make_raw(int fd, struct termios *old)
 	t.c_iflag  &= ~(IXON | IXOFF);
 	t.c_cflag |= CLOCAL;
 	t.c_cflag &= ~CRTSCTS;
-	if (cfsetispeed(&t, bps) < 0) {
+	if (cfsetispeed(&t, speed) < 0) {
 	    perror("cfsetispeed");
 	    exit(1);
 	}
-	if (cfsetospeed(&t, bps) < 0) {
+	if (cfsetospeed(&t, speed) < 0) {
 	    perror("cfsetospeed");
 	    exit(1);
 	}
@@ -168,7 +195,7 @@ static void usage(const char *name)
 int main(int argc, char *const *argv)
 {
     char *end;
-    int c;
+    int c, bps;
     int fd = -1;
     int throttle_us = 0;
     int throttle = 0;
@@ -179,6 +206,7 @@ int main(int argc, char *const *argv)
 		bps = strtoul(optarg, &end, 0);
 		if (*end)
 		    usage(*argv);
+		speed = bps_to_speed(bps);
 		break;
 	    case 't':
 		throttle_us = strtoul(optarg, &end, 0)*1000;
