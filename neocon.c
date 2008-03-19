@@ -1,7 +1,7 @@
 /*
  * neocon.c - An interface for changing tty devices
  *
- * Copyright (C) 2007 by OpenMoko, Inc.
+ * Copyright (C) 2007, 2008 by OpenMoko, Inc.
  * Written by Werner Almesberger <werner@openmoko.org>
  * All Rights Reserved
  *
@@ -28,12 +28,20 @@
 #include <string.h>
 #include <termios.h>
 #include <fcntl.h>
+#include <assert.h>
+#include <sys/time.h>
 #include <sys/select.h>
+
+
+#define MAX_BUF 2048
 
 static char *const *ttys;
 static int num_ttys;
 static speed_t speed = B115200;
 static struct termios console, tty;
+static FILE *log = NULL;
+static int timestamp = 0;
+static char escape = '~';
 
 
 static struct bps {
@@ -127,7 +135,7 @@ static void scan(const char *s, size_t len)
     for (i = 0; i != len; i++)
 	switch (state) {
 	    case 0:
-		if (s[i] == '~')
+		if (s[i] == escape)
 		    state++;
 		else
 		    state = 0;
@@ -141,16 +149,83 @@ static void scan(const char *s, size_t len)
 }
 
 
-static int copy(int in, int out, int scan_escape, int single)
+static int write_log(const char *buf, ssize_t len)
 {
-    char buffer[2048];
+    size_t wrote;
+
+    wrote = fwrite(buf, 1, len, log);
+    if (wrote == len)
+	return 1;
+    fprintf(stderr, "write failed. closing log file.\n");
+    fclose(log);
+    log = NULL;
+    return 0;
+}
+
+
+static int add_timestamp(void)
+{
+    struct timeval tv;
+    char buf[40]; /* be generous */
+    int len;
+
+    if (gettimeofday(&tv, NULL) < 0) {
+	perror("gettimeofday");
+	exit(1);
+    }
+    len = sprintf(buf, "%lu.%06lu ",
+      (unsigned long) tv.tv_sec, (unsigned long) tv.tv_usec);
+    return write_log(buf, len);
+}
+
+
+static void do_log(const char *buf, ssize_t len)
+{
+    static int nl = 1; /* we're at the beginning of a new line */
+    char tmp[MAX_BUF];
+    const char *from;
+    char *to;
+
+    assert(len <= MAX_BUF);
+    from = buf;
+    to = tmp;
+    while (from != buf+len) {
+	if (*from == '\r') {
+	    from++;
+	    continue;
+	}
+	if (nl && timestamp)
+	    if (!add_timestamp())
+		return;
+	nl = 0;
+	if (*from == '\n') {
+	    *to++ = *from++;
+	    if (!write_log(tmp, to-tmp))
+		return;
+	    to = tmp;
+	    nl = 1;
+	    continue;
+	}
+	*to++ = *from < ' ' || *from > '~' ? '#' : *from;
+	from++;
+    }
+    write_log(tmp, to-tmp);
+}
+
+
+static int copy(int in, int out, int from_user, int single)
+{
+    char buffer[MAX_BUF];
     ssize_t got, wrote, pos;
  
     got = read(in, buffer, single ? 1 : sizeof(buffer));
     if (got < 0)
 	return 0;
-    if (scan_escape)
+    if (from_user)
 	scan(buffer, got);
+    else
+	if (log)
+	    do_log(buffer, got);
     for (pos = 0; pos != got; pos += wrote) {
 	wrote = write(out, buffer+pos, got-pos);
 	if (wrote < 0)
@@ -187,7 +262,15 @@ static void cleanup(void)
 
 static void usage(const char *name)
 {
-    fprintf(stderr, "usage: %s [-b bps] [-t delay_ms] tty ...\n", name);
+    fprintf(stderr,
+"usage: %s [-b bps] [-e escape] [-l logfile [-a] [-T]] [-t delay_ms] tty ...\n\n"
+"  -a           append to the log file if it already exists\n"
+"  -b bps       set the TTY to the specified bit rate\n"
+"  -e escape    set the escape character (default: ~)\n"
+"  -l logfile   log all output to the specified file\n"
+"  -t delay_ms  wait the specified amount of time between input characters\n"
+"  -T           add timestamps to the log file\n"
+      , name);
     exit(1);
 }
 
@@ -197,27 +280,52 @@ int main(int argc, char *const *argv)
     char *end;
     int c, bps;
     int fd = -1;
+    int append = 0;
+    const char *logfile = NULL;
     int throttle_us = 0;
     int throttle = 0;
 
-    while ((c = getopt(argc, argv, "b:t:")) != EOF)
+    while ((c = getopt(argc, argv, "ab:e:l:t:T")) != EOF)
 	switch (c) {
+	    case 'a':
+		append = 1;
+		break;
 	    case 'b':
 		bps = strtoul(optarg, &end, 0);
 		if (*end)
 		    usage(*argv);
 		speed = bps_to_speed(bps);
 		break;
+	    case 'e':
+		if (strlen(optarg) != 1)
+		    usage(*argv);
+		escape = *optarg;
+		break;
+	    case 'l':
+		logfile = optarg;
+		break;
 	    case 't':
 		throttle_us = strtoul(optarg, &end, 0)*1000;
 		if (*end)
 		    usage(*argv);
+		break;
+	    case 'T':
+		timestamp = 1;
 		break;
 	    default:
 		usage(*argv);
 	}
     num_ttys = argc-optind;
     ttys = argv+optind;
+
+    if (logfile) {
+	log = fopen(logfile, append ? "a" : "w");
+	if (!log) {
+	    perror(logfile);
+	    exit(1);
+	}
+	setlinebuf(log);
+    }
 
     make_raw(0, &console);
     atexit(cleanup);

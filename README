@@ -11,3 +11,21 @@ neocon /dev/ttyUSB0 /dev/ttyUSB1
 The option  -t delay_ms  throttles keyboard input to a rate of
 one character every "delay_ms" milliseconds. This can be used to
 prevent buffer overruns on the remote end.
+
+"neocon" can log to a file with the option "-l logfile". Non-ASCII
+and non-printable characters are converted to hash signs (#). To
+append to an existing logfile, add the option "-a". To add a
+timestamp before each line, use the option "-T".
+
+To leave neocon, type "~.". The escape character (~) can be changed
+with the option "-e escape".
+
+
+Known issues
+------------
+
+Sometimes, the USB stack locks up without neocon ever noticing.
+To reproduce:
+
+- neocon with ttyACM* to u-boot
+- in u-boot, reset
