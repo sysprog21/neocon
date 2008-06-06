@@ -219,7 +219,7 @@ static int copy(int in, int out, int from_user, int single)
     ssize_t got, wrote, pos;
  
     got = read(in, buffer, single ? 1 : sizeof(buffer));
-    if (got < 0)
+    if (got <= 0)
 	return 0;
     if (from_user)
 	scan(buffer, got);
