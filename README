@@ -20,12 +20,10 @@ timestamp before each line, use the option "-T".
 To leave neocon, type "~.". The escape character (~) can be changed
 with the option "-e escape".
 
+To manually switch to the next device, enter "~n".
+
 
 Known issues
 ------------
 
-Sometimes, the USB stack locks up without neocon ever noticing.
-To reproduce:
-
-- neocon with ttyACM* to u-boot
-- in u-boot, reset
+- the escape character is sent to the target

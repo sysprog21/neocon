@@ -37,6 +37,7 @@
 
 static char *const *ttys;
 static int num_ttys;
+static int curr_tty = -1; /* start with first tty */
 static speed_t speed = B115200;
 static struct termios console, tty;
 static FILE *log = NULL;
@@ -112,12 +113,13 @@ static void make_raw(int fd, struct termios *old)
 }
 
 
-static int open_first_tty(void)
+static int open_next_tty(void)
 {
     int i, fd = -1;
 
     for (i = 0; i != num_ttys; i++) {
-	fd = open(ttys[i], O_RDWR | O_NDELAY);
+	curr_tty = (curr_tty+1) % num_ttys;
+	fd = open(ttys[curr_tty], O_RDWR | O_NDELAY);
 	if (fd >= 0)
 	    break;
     }
@@ -127,25 +129,34 @@ static int open_first_tty(void)
 }
 
 
-static void scan(const char *s, size_t len)
+/*
+ * Return 1 if the user manually forces a device change.
+ */
+
+
+static int scan(const char *s, size_t len)
 {
     static int state = 0;
-    size_t i;
+    const char *p;
+    int res = 0;
 
-    for (i = 0; i != len; i++)
+    for (p = s; p != s+len; p++)
 	switch (state) {
 	    case 0:
-		if (s[i] == escape)
+		if (*p == escape)
 		    state++;
 		else
 		    state = 0;
 		break;
 	    case 1:
-		if (s[i] == '.')
+		if (*p == '.')
 		    exit(0);
+		if (*p == 'n')
+		    res = 1;
 		state = 0;
 		break;
 	}
+    return res;
 }
 
 
@@ -217,15 +228,18 @@ static int copy(int in, int out, int from_user, int single)
 {
     char buffer[MAX_BUF];
     ssize_t got, wrote, pos;
- 
+
     got = read(in, buffer, single ? 1 : sizeof(buffer));
     if (got <= 0)
 	return 0;
-    if (from_user)
-	scan(buffer, got);
-    else
+    if (from_user) {
+	if (scan(buffer, got))
+	    return 0;
+    }
+    else {
 	if (log)
 	    do_log(buffer, got);
+    }
     for (pos = 0; pos != got; pos += wrote) {
 	wrote = write(out, buffer+pos, got-pos);
 	if (wrote < 0)
@@ -257,6 +271,7 @@ static void cleanup(void)
 {
     if (tcsetattr(0, TCSANOW, &console) < 0)
 	perror("tcsetattr");
+    write(1, "\n", 1);
 }
 
 
@@ -335,9 +350,13 @@ int main(int argc, char *const *argv)
 	int res;
 
 	if (fd < 0) {
-	    fd = open_first_tty();
-	    if (fd > 0)
-		write_string("\r\n[Open]\r\n");
+	    fd = open_next_tty();
+	    if (fd > 0) {
+		char buf[1024]; /* enough :-) */
+
+		sprintf(buf, "\r\r[Open %s]\r\n", ttys[curr_tty]);
+		write_string(buf);
+	    }
 	}
 	FD_ZERO(&set);
 	if (!throttle)
