@@ -1,0 +1,15 @@
+Source: neocon
+Section: net
+Priority: extra
+Maintainer: Harald Welte <laforge@gnumonks.org>
+Build-Depends: debhelper (>=9)
+Standards-Version: 3.9.8
+Vcs-Git: https://github.com/openmoko/neocon.git
+Vcs-Browser: https://github.com/openmoko/neocon
+Homepage: https://github.com/openmoko/neocon
+
+Package: neocon
+Architecture: any
+Multi-Arch: same
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Description: Simple serial console utility with re-open-after-disconnect

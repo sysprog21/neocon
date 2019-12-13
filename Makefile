@@ -11,7 +11,7 @@ clean:
 		rm -f neocon
 
 install:	neocon
-		install -D -m 555 neocon $(PREFIX)/bin
+		install -D -m 555 neocon $(DESTDIR)$(PREFIX)/bin/neocon
 
 uninstall:
-		rm -f $(PREFIX)/bin/neocon
+		rm -f $(DESTDIR)$(PREFIX)/bin/neocon
