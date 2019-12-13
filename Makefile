@@ -1,4 +1,5 @@
-PREFIX=/usr/local
+DESTDIR:=
+PREFIX:=/usr/local
 
 CFLAGS=-Wall -g
 
