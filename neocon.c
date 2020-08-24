@@ -31,7 +31,12 @@
 #include <assert.h>
 #include <sys/time.h>
 #include <sys/select.h>
+#ifdef __APPLE__
+#include <sys/ioctl.h>
+#include <sys/errno.h>
 
+#include <IOKit/serial/ioss.h>
+#endif
 
 #define MAX_BUF 2048
 
@@ -69,6 +74,9 @@ static struct bps {
 
 static speed_t bps_to_speed(int bps)
 {
+#ifdef __APPLE__
+    return bps;
+#endif
     const struct bps *p;
 
     for (p = bps_tab; p->bps; p++)
@@ -95,6 +103,11 @@ static void make_raw(int fd, struct termios *old)
 	t.c_iflag  &= ~(IXON | IXOFF);
 	t.c_cflag |= CLOCAL;
 	t.c_cflag &= ~CRTSCTS;
+#ifdef __APPLE__
+	if (ioctl(fd, IOSSIOSPEED, &speed) == -1) {
+	    printf("Error %d calling ioctl( ..., IOSSIOSPEED, ... )\n", errno);
+	}
+#endif
 	if (cfsetispeed(&t, speed) < 0) {
 	    perror("cfsetispeed");
 	    exit(1);
