@@ -157,6 +157,8 @@ static void make_raw(int fd, struct termios *old)
         perror("fcntl F_GETFL");
         exit(1);
     }
+
+    puts("\033[2J\033[H"); /* clear the screen */
 }
 
 static int open_next_tty(void)
@@ -371,6 +373,9 @@ int main(int argc, char *const *argv)
         }
         setlinebuf(log);
     }
+
+    /* restore the terminal */
+    system("stty sane; tput cnorm");
 
     make_raw(0, &console);
     atexit(cleanup);
