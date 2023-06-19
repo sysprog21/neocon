@@ -1,7 +1,7 @@
 DESTDIR :=
 PREFIX := /usr/local
 
-CFLAGS = -Wall -g
+CFLAGS = -Wall -g -std=gnu99
 
 .PHONY:	all clean install uninstall
 

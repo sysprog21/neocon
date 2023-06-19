@@ -106,9 +106,8 @@ static speed_t bps_to_speed(int bps)
 #ifdef __APPLE__
     return bps;
 #endif
-    const struct bps *p;
 
-    for (p = bps_tab; p->bps; p++)
+    for (const struct bps *p = bps_tab; p->bps; p++)
         if (p->bps == bps)
             return p->speed;
     fprintf(stderr, "no such speed: %d bps\n", bps);
@@ -118,12 +117,11 @@ static speed_t bps_to_speed(int bps)
 static void make_raw(int fd, struct termios *old)
 {
     struct termios t;
-    long flags;
-
     if (tcgetattr(fd, &t) < 0) {
         perror("tcgetattr");
         exit(1);
     }
+
     if (old)
         *old = t;
     cfmakeraw(&t);
@@ -149,7 +147,8 @@ static void make_raw(int fd, struct termios *old)
         perror("tcsetattr");
         exit(1);
     }
-    flags = fcntl(fd, F_GETFL);
+
+    long flags = fcntl(fd, F_GETFL);
     if (flags < 0) {
         perror("fcntl F_GETFL");
         exit(1);
@@ -162,9 +161,9 @@ static void make_raw(int fd, struct termios *old)
 
 static int open_next_tty(void)
 {
-    int i, fd = -1;
+    int fd = -1;
 
-    for (i = 0; i != num_ttys; i++) {
+    for (int i = 0; i != num_ttys; i++) {
         curr_tty = (curr_tty + 1) % num_ttys;
         fd = open(ttys[curr_tty], O_RDWR | O_NDELAY);
         if (fd >= 0)
@@ -181,10 +180,9 @@ static int open_next_tty(void)
 static int scan(const char *s, size_t len)
 {
     static int state = 0;
-    const char *p;
     int res = 0;
 
-    for (p = s; p != s + len; p++)
+    for (const char *p = s; p != s + len; p++) {
         switch (state) {
         case 0:
             if (*p == escape)
@@ -200,16 +198,16 @@ static int scan(const char *s, size_t len)
             state = 0;
             break;
         }
+    }
     return res;
 }
 
 static int write_log(const char *buf, ssize_t len)
 {
-    size_t wrote;
-
-    wrote = fwrite(buf, 1, len, log);
+    size_t wrote = fwrite(buf, 1, len, log);
     if (wrote == len)
         return 1;
+
     fprintf(stderr, "write failed. closing log file.\n");
     fclose(log);
     log = NULL;
@@ -220,14 +218,13 @@ static int add_timestamp(void)
 {
     struct timeval tv;
     char buf[40]; /* be generous */
-    int len;
 
     if (gettimeofday(&tv, NULL) < 0) {
         perror("gettimeofday");
         exit(1);
     }
-    len = sprintf(buf, "%lu.%06lu ", (unsigned long)tv.tv_sec,
-                  (unsigned long)tv.tv_usec);
+    int len = sprintf(buf, "%lu.%06lu ", (unsigned long)tv.tv_sec,
+                      (unsigned long)tv.tv_usec);
     return write_log(buf, len);
 }
 
@@ -235,12 +232,10 @@ static void do_log(const char *buf, ssize_t len)
 {
     static int nl = 1; /* we're at the beginning of a new line */
     char tmp[MAX_BUF];
-    const char *from;
-    char *to;
 
     assert(len <= MAX_BUF);
-    from = buf;
-    to = tmp;
+    const char *from = buf;
+    char *to = tmp;
     while (from != buf + len) {
         if (*from == '\r') {
             from++;
@@ -267,9 +262,8 @@ static void do_log(const char *buf, ssize_t len)
 static int copy(int in, int out, int from_user, int single)
 {
     char buffer[MAX_BUF];
-    ssize_t got, wrote, pos;
 
-    got = read(in, buffer, single ? 1 : sizeof(buffer));
+    ssize_t got = read(in, buffer, single ? 1 : sizeof(buffer));
     if (got <= 0)
         return 0;
     if (from_user) {
@@ -279,10 +273,12 @@ static int copy(int in, int out, int from_user, int single)
         if (log)
             do_log(buffer, got);
     }
-    for (pos = 0; pos != got; pos += wrote) {
-        wrote = write(out, buffer + pos, got - pos);
+
+    for (ssize_t pos = 0; pos != got;) {
+        ssize_t wrote = write(out, buffer + pos, got - pos);
         if (wrote < 0)
             return 0;
+        pos += wrote;
     }
     return 1;
 }
@@ -290,11 +286,8 @@ static int copy(int in, int out, int from_user, int single)
 static void write_string(const char *s)
 {
     int len = strlen(s);
-
     while (len) {
-        ssize_t wrote;
-
-        wrote = write(1, s, len);
+        ssize_t wrote = write(1, s, len);
         if (wrote < 0) {
             perror("write");
             exit(1);
@@ -329,7 +322,7 @@ static void usage(const char *name)
 int main(int argc, char *const *argv)
 {
     char *end;
-    int c, bps;
+    int c;
     int fd = -1;
     int append = 0;
     const char *logfile = NULL;
@@ -341,12 +334,13 @@ int main(int argc, char *const *argv)
         case 'a':
             append = 1;
             break;
-        case 'b':
-            bps = strtoul(optarg, &end, 0);
+        case 'b': {
+            int bps = strtoul(optarg, &end, 0);
             if (*end)
                 usage(*argv);
             speed = bps_to_speed(bps);
             break;
+        }
         case 'e':
             if (strlen(optarg) != 1)
                 usage(*argv);
@@ -381,10 +375,6 @@ int main(int argc, char *const *argv)
     make_raw(0, &console);
     atexit(cleanup);
     while (1) {
-        struct timeval tv;
-        fd_set set;
-        int res;
-
         if (fd < 0) {
             fd = open_next_tty();
             if (fd > 0) {
@@ -394,14 +384,19 @@ int main(int argc, char *const *argv)
                 write_string(buf);
             }
         }
+
+        fd_set set;
         FD_ZERO(&set);
         if (!throttle)
             FD_SET(0, &set);
         if (fd >= 0)
             FD_SET(fd, &set);
-        tv.tv_sec = 0;
-        tv.tv_usec = throttle ? throttle_us : 100000;
-        res = select(fd < 0 ? 1 : fd + 1, &set, NULL, NULL, &tv);
+
+        struct timeval tv = {
+            .tv_sec = 0,
+            .tv_usec = throttle ? throttle_us : 100000,
+        };
+        int res = select(fd < 0 ? 1 : fd + 1, &set, NULL, NULL, &tv);
         if (res < 0) {
             perror("select");
             return 1;
