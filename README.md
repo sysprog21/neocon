@@ -44,8 +44,8 @@ $ neocon /dev/ttyUSB{0,1,2}
 
 ### Exiting `neocon`
 
-To exit the Neocon utility, simply type `~.` (tilde followed by a dot).
-The escape character (`~`) can be changed using the `-e` escape option.
+To exit the `neocon`, simply type `~.` (tilde followed by a dot).
+The escape character (`~`) can be changed using the `-e` option.
 
 ### Switching to the next device
 
