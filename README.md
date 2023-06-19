@@ -6,10 +6,18 @@ facilitates the transmission of terminal input and output until a read or write
 failure occurs on the tty. In such cases, the utility automatically disconnects
 and restarts the process.
 
-This utility is primarily designed for serial over USB interfaces that may
-disappear when the board is restarted. For example:
+`neocon` offers several notable advantages over other terminal programs:
+* Accessing `/dev/ttyACM0` with `neocon` does not require root privileges.
+  Being a member of the `dialout` group should provide sufficient privileges.
+* By specifying a delay on keyboard input (as demonstrated below),
+  `neocon` enables you to paste commands directly from the clipboard.
+* `neocon` can be launched even when `/dev/ttyACM0` is unavailable. It will
+  automatically establish a connection as soon as the device becomes ready.
+
+The main feature of neocon is its ability to accept a list of devices and
+automatically select a functional one. e.g.,
 ```shell
-neocon /dev/ttyUSB0 /dev/ttyUSB1
+$ neocon /dev/ttyUSB{0,1,2}
 ```
 
 ## Options
@@ -27,7 +35,7 @@ neocon /dev/ttyUSB0 /dev/ttyUSB1
     use the `-T` option.
 * `-a`
   - Append to the log file if it already exists.
-* `-e` character
+* `-e` escape
   - Set the escape character (default: `~`).
 * `-T`
   - Add timestamps to the log file.

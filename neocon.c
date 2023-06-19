@@ -308,7 +308,7 @@ static void usage(const char *name)
 {
     fprintf(
         stderr,
-        "usage: %s [-b bps] [-e escape] [-l logfile [-a] [-T]] [-t delay_ms] tty ...\n\n"
+        "usage: %s [-b bps] [-e escape] [-l logfile [-a] [-T]] [-t delay_ms] tty ...\n"
         "  -a           append to the log file if it already exists\n"
         "  -b bps       set the TTY to the specified bit rate\n"
         "  -e escape    set the escape character (default: ~)\n"
