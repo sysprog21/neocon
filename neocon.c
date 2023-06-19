@@ -107,9 +107,10 @@ static speed_t bps_to_speed(int bps)
     return bps;
 #endif
 
-    for (const struct bps *p = bps_tab; p->bps; p++)
+    for (const struct bps *p = bps_tab; p->bps; p++) {
         if (p->bps == bps)
             return p->speed;
+    }
     fprintf(stderr, "no such speed: %d bps\n", bps);
     exit(1);
 }
@@ -268,6 +269,7 @@ static int copy(int in, int out, int from_user, int single)
     ssize_t got = read(in, buffer, single ? 1 : sizeof(buffer));
     if (got <= 0)
         return 0;
+
     if (from_user) {
         if (scan(buffer, got))
             return 0;
@@ -331,7 +333,7 @@ int main(int argc, char *const *argv)
     int throttle_us = 0;
     int throttle = 0;
 
-    while ((c = getopt(argc, argv, "ab:e:hl:t:T")) != EOF)
+    while ((c = getopt(argc, argv, "ab:e:hl:t:T")) != EOF) {
         switch (c) {
         case 'a':
             append = 1;
@@ -362,6 +364,7 @@ int main(int argc, char *const *argv)
         default:
             usage(*argv);
         }
+    }
     num_ttys = argc - optind;
     ttys = argv + optind;
 
