@@ -19,6 +19,10 @@ automatically select a functional one. e.g.,
 ```shell
 $ neocon /dev/ttyUSB{0,1,2}
 ```
+or (on macOS)
+```shell
+$ neocon /dev/tty.usbserial-*
+```
 
 ## Supported Platforms
 
