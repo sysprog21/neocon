@@ -308,7 +308,7 @@ static void usage(const char *name)
 {
     fprintf(
         stderr,
-        "usage: %s [-b bps] [-e escape] [-l logfile [-a] [-T]] [-t delay_ms] tty ...\n"
+        "Usage: %s [-b bps] [-e escape] [-l logfile [-a] [-T]] [-t delay_ms] tty ...\n"
         "  -a           append to the log file if it already exists\n"
         "  -b bps       set the TTY to the specified bit rate\n"
         "  -e escape    set the escape character (default: ~)\n"
@@ -329,7 +329,7 @@ int main(int argc, char *const *argv)
     int throttle_us = 0;
     int throttle = 0;
 
-    while ((c = getopt(argc, argv, "ab:e:l:t:T")) != EOF)
+    while ((c = getopt(argc, argv, "ab:e:hl:t:T")) != EOF)
         switch (c) {
         case 'a':
             append = 1;
