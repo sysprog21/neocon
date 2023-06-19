@@ -20,6 +20,12 @@ automatically select a functional one. e.g.,
 $ neocon /dev/ttyUSB{0,1,2}
 ```
 
+## Supported Platforms
+
+`neocon` has undergone extensive testing on both GNU/Linux and macOS platforms.
+If you find that neocon is capable of running on other operating systems,
+please [submit an issue](https://github.com/sysprog21/neocon/issues) to notify the maintainer.
+
 ## Options
 
 * `-b` baud\_rate
