@@ -204,7 +204,7 @@ static int scan(const char *s, size_t len)
 
 static int write_log(const char *buf, ssize_t len)
 {
-    size_t wrote = fwrite(buf, 1, len, log);
+    ssize_t wrote = fwrite(buf, 1, len, log);
     if (wrote == len)
         return 1;
 
