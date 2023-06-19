@@ -2,3 +2,4 @@ neocon
 debian/neocon.debhelper.log
 debian/neocon.substvars
 debian/files
+*.dSYM
