@@ -1,17 +1,17 @@
-DESTDIR:=
-PREFIX:=/usr/local
+DESTDIR :=
+PREFIX := /usr/local
 
-CFLAGS=-Wall -g
+CFLAGS = -Wall -g
 
 .PHONY:	all clean install uninstall
 
-all:		neocon
+all: neocon
 
 clean:
-		rm -f neocon
+	$(RM) neocon
 
-install:	neocon
-		install -D -m 555 neocon $(DESTDIR)$(PREFIX)/bin/neocon
+install: neocon
+	install -D -m 555 neocon $(DESTDIR)$(PREFIX)/bin/neocon
 
 uninstall:
-		rm -f $(DESTDIR)$(PREFIX)/bin/neocon
+	rm -f $(DESTDIR)$(PREFIX)/bin/neocon
