@@ -20,6 +20,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdio.h>
@@ -44,7 +45,7 @@ static int curr_tty = -1; /* start with first tty */
 static speed_t speed = B115200;
 static struct termios console, tty;
 static FILE *log = NULL;
-static int timestamp = 0;
+static bool timestamp = false;
 static char escape = '~';
 
 static struct bps {
@@ -178,12 +179,12 @@ static int open_next_tty(void)
 }
 
 /*
- * Return 1 if the user manually forces a device change.
+ * Return true if the user manually forces a device change.
  */
-static int scan(const char *s, size_t len)
+static bool scan(const char *s, size_t len)
 {
     static int state = 0;
-    int res = 0;
+    bool res = false;
 
     for (const char *p = s; p != s + len; p++) {
         switch (state) {
@@ -197,7 +198,7 @@ static int scan(const char *s, size_t len)
             if (*p == '.')
                 exit(0);
             if (*p == 'n')
-                res = 1;
+                res = true;
             state = 0;
             break;
         }
@@ -205,27 +206,27 @@ static int scan(const char *s, size_t len)
     return res;
 }
 
-static int write_log(const char *buf, ssize_t len)
+static bool write_log(const char *buf, ssize_t len)
 {
     ssize_t wrote = fwrite(buf, 1, len, log);
     if (wrote == len)
-        return 1;
+        return true;
 
     fprintf(stderr, "write failed. closing log file.\n");
     fclose(log);
     log = NULL;
-    return 0;
+    return false;
 }
 
-static int add_timestamp(void)
+static bool add_timestamp(void)
 {
     struct timeval tv;
-    char buf[40]; /* be generous */
-
     if (gettimeofday(&tv, NULL) < 0) {
         perror("gettimeofday");
         exit(1);
     }
+
+    char buf[40]; /* be generous */
     int len = sprintf(buf, "%lu.%06lu ", (unsigned long)tv.tv_sec,
                       (unsigned long)tv.tv_usec);
     return write_log(buf, len);
@@ -233,7 +234,7 @@ static int add_timestamp(void)
 
 static void do_log(const char *buf, ssize_t len)
 {
-    static int nl = 1; /* we're at the beginning of a new line */
+    static bool nl = true; /* we are at the beginning of a new line */
     char tmp[MAX_BUF];
 
     assert(len <= MAX_BUF);
@@ -247,13 +248,13 @@ static void do_log(const char *buf, ssize_t len)
         if (nl && timestamp)
             if (!add_timestamp())
                 return;
-        nl = 0;
+        nl = false;
         if (*from == '\n') {
             *to++ = *from++;
             if (!write_log(tmp, to - tmp))
                 return;
             to = tmp;
-            nl = 1;
+            nl = true;
             continue;
         }
         *to++ = *from < ' ' || *from > '~' ? '#' : *from;
@@ -262,17 +263,17 @@ static void do_log(const char *buf, ssize_t len)
     write_log(tmp, to - tmp);
 }
 
-static int copy(int in, int out, int from_user, int single)
+static bool copy(int in, int out, int from_user, int single)
 {
     char buffer[MAX_BUF];
 
     ssize_t got = read(in, buffer, single ? 1 : sizeof(buffer));
     if (got <= 0)
-        return 0;
+        return false;
 
     if (from_user) {
         if (scan(buffer, got))
-            return 0;
+            return false;
     } else {
         if (log)
             do_log(buffer, got);
@@ -281,10 +282,10 @@ static int copy(int in, int out, int from_user, int single)
     for (ssize_t pos = 0; pos != got;) {
         ssize_t wrote = write(out, buffer + pos, got - pos);
         if (wrote < 0)
-            return 0;
+            return false;
         pos += wrote;
     }
-    return 1;
+    return true;
 }
 
 static void write_string(const char *s)
@@ -326,17 +327,16 @@ static void usage(const char *name)
 int main(int argc, char *const *argv)
 {
     char *end;
-    int c;
-    int fd = -1;
-    int append = 0;
+    bool append = false;
     const char *logfile = NULL;
     int throttle_us = 0;
-    int throttle = 0;
+    bool throttle = false;
 
+    int c;
     while ((c = getopt(argc, argv, "ab:e:hl:t:T")) != EOF) {
         switch (c) {
         case 'a':
-            append = 1;
+            append = true;
             break;
         case 'b': {
             int bps = strtoul(optarg, &end, 0);
@@ -359,7 +359,7 @@ int main(int argc, char *const *argv)
                 usage(*argv);
             break;
         case 'T':
-            timestamp = 1;
+            timestamp = true;
             break;
         default:
             usage(*argv);
@@ -382,6 +382,8 @@ int main(int argc, char *const *argv)
 
     make_raw(0, &console);
     atexit(cleanup);
+
+    int fd = -1;
     while (1) {
         if (fd < 0) {
             fd = open_next_tty();
@@ -410,10 +412,10 @@ int main(int argc, char *const *argv)
             return 1;
         }
         if (!res)
-            throttle = 0;
+            throttle = false;
         if (FD_ISSET(0, &set)) {
             if (throttle_us)
-                throttle = 1;
+                throttle = true;
             if (!copy(0, fd, 1, throttle_us != 0))
                 goto failed;
         }
