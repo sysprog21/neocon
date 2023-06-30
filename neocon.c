@@ -46,6 +46,8 @@ static speed_t speed = B115200;
 static struct termios console, tty;
 static FILE *log = NULL;
 static bool timestamp = false;
+
+#define ESC "\033"
 static char escape = '~';
 
 static struct bps {
@@ -159,8 +161,6 @@ static void make_raw(int fd, struct termios *old)
         perror("fcntl F_GETFL");
         exit(1);
     }
-
-    puts("\033[2J\033[H"); /* clear the screen */
 }
 
 static int open_next_tty(void)
@@ -324,6 +324,7 @@ static void usage(const char *name)
     exit(1);
 }
 
+extern char **environ;
 int main(int argc, char *const *argv)
 {
     char *end;
@@ -378,7 +379,17 @@ int main(int argc, char *const *argv)
     }
 
     /* restore the terminal */
-    system("stty sane; tput cnorm");
+    /* See 'man 4 console_codes' for details:
+     * "ESC c"        -- Reset
+     * "ESC ( B"      -- Select G0 Character Set (B = US)
+     * "ESC [ m"      -- Reset all display attributes
+     * "ESC [ J"      -- Erase to the end of screen
+     * "ESC [ ? 25 h" -- Make cursor visible
+     */
+    printf(ESC "c" ESC "(B" ESC "[m" ESC "[J" ESC "[?25h");
+
+    /* Make sure stdout gets drained before opening tty. */
+    fflush(NULL);
 
     make_raw(0, &console);
     atexit(cleanup);
