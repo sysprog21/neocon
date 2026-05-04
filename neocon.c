@@ -43,6 +43,7 @@ static char *const *ttys;
 static int num_ttys;
 static int curr_tty = -1; /* start with first tty */
 static speed_t speed = B115200;
+static int bps_value = 115200;
 static struct termios console, tty;
 static FILE *log = NULL;
 static bool timestamp = false;
@@ -116,6 +117,11 @@ static speed_t bps_to_speed(int bps)
     }
     fprintf(stderr, "no such speed: %d bps\n", bps);
     exit(1);
+}
+
+static int baud_delay_us(int bps)
+{
+    return 10000000 / bps;
 }
 
 static void make_raw(int fd, struct termios *old)
@@ -332,6 +338,7 @@ int main(int argc, char *const *argv)
     const char *logfile = NULL;
     int throttle_us = 0;
     bool throttle = false;
+    bool throttle_specified = false;
 
     int c;
     while ((c = getopt(argc, argv, "ab:e:hl:t:T")) != EOF) {
@@ -344,6 +351,7 @@ int main(int argc, char *const *argv)
             if (*end)
                 usage(*argv);
             speed = bps_to_speed(bps);
+            bps_value = bps;
             break;
         }
         case 'e':
@@ -358,6 +366,7 @@ int main(int argc, char *const *argv)
             throttle_us = strtoul(optarg, &end, 0) * 1000;
             if (*end)
                 usage(*argv);
+            throttle_specified = true;
             break;
         case 'T':
             timestamp = true;
@@ -368,6 +377,9 @@ int main(int argc, char *const *argv)
     }
     num_ttys = argc - optind;
     ttys = argv + optind;
+
+    if (!throttle_specified)
+        throttle_us = baud_delay_us(bps_value);
 
     if (logfile) {
         log = fopen(logfile, append ? "a" : "w");
