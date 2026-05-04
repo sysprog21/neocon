@@ -3,3 +3,6 @@ debian/neocon.debhelper.log
 debian/neocon.substvars
 debian/files
 *.dSYM
+
+# The nix output
+result
